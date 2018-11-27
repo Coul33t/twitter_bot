@@ -16,68 +16,91 @@ import time
 
 from markold.markold import Markold 
 
-auth = OAuthHandler(auth_id.consumer_key, auth_id.consumer_secret)
-auth.set_access_token(auth_id.access_token, auth_id.access_secret)
+import argparse
 
-api = tweepy.API(auth, wait_on_rate_limit=True)
+def parse_args():
+    """ Arguments parser. """
 
-name = 'EmmanuelMacron'
-other = api.get_user(name)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--at", help="the person to imitate", type=str)
+    parser.add_argument("-p", "--pages", help="the number of page to gather", type=int, default=5)
+    parser.add_argument("-m", "--markov", help="the number of words to look forward for (more = more realistic sentences, but less variation from original sentences)",
+                        type=int, default=3)
+    parser.add_argument("-o", "--output", help="the name of the output file", type=str)
+    args = parser.parse_args()
 
-output_name = 'data_' + name + '.txt'
-data = []
+    if not 0 < int(args.markov):
+        parser.error("Error: markov value must be > 0.")
 
-text = []
+    return args
 
-nb_pages = 5
+def main(args):
+    auth = OAuthHandler(auth_id.consumer_key, auth_id.consumer_secret)
+    auth.set_access_token(auth_id.access_token, auth_id.access_secret)
 
-to_output = True
+    api = tweepy.API(auth, wait_on_rate_limit=True)
 
-tweets_cursor = tweepy.Cursor(api.user_timeline, id=name, tweet_mode='extended').pages(nb_pages)
-retry_count = 0
-page_count = 0
-while True:
-    try:
-        page = tweets_cursor.next()
-        page_count += 1
-        print(f'Processing page {page_count}')
-        for tweet in page:
-            if 'RT @' not in tweet.full_text:
-                text.append(tweet.full_text)
+    name = 'EmmanuelMacron'
 
-    except tweepy.TweepError as err:
-        pdb.set_trace()
-        print(f"Error code: {err.api_code} with message: {err.message[0]['message']}")
-        retry_count += 1
-        time.sleep(5)
-        if retry_count > 100:
-            break
+    output_name = 'data_' + name + '.txt'
 
-    # We reached the end of the pages
-    except StopIteration:
-        break  
+    text = []
 
-if to_output:
-    with open(output_name, 'w', encoding='utf8')as of:
-        for tweet in text:
-            of.write(tweet + '\n')
+    tweets_cursor = tweepy.Cursor(api.user_timeline, id=name, tweet_mode='extended').pages(args.pages)
+    retry_count = 0
+    page_count = 0
 
-mark = Markold()
-markov = 4
-to_output = False
-to_print = True
-mark.import_sentences(text)
-sentence = mark.generate_multiple_sentences(markov, 1, to_output=to_output, to_print=to_print)
-while len(sentence[0]) > 280:
-        sentence = mark.generate_multiple_sentences(markov, 1, to_output=to_output, to_print=to_print)
-        
-ok_or_not = input()
+    while True:
+        try:
+            page = tweets_cursor.next()
+            page_count += 1
+            print(f'Processing page {page_count}')
+            for tweet in page:
+                if 'RT @' not in tweet.full_text:
+                    text.append(tweet.full_text)
 
-while ok_or_not != 'y':
-    sentence = mark.generate_multiple_sentences(markov, 1, to_output=to_output, to_print=to_print)
+        except tweepy.TweepError as err:
+            pdb.set_trace()
+            print(f"Error code: {err.response.text} with message: ")
+            retry_count += 1
+            print(f'Retrying in 5s (total retries = {retry_count})')
+            time.sleep(5)
+            if retry_count > 100:
+                break
+
+        # We reached the end of the pages
+        except StopIteration:
+            break  
+
+    if args.output:
+        with open(output_name, 'w', encoding='utf8')as of:
+            for tweet in text:
+                of.write(tweet + '\n')
+
+    mark = Markold()
+    to_output = False
+    to_print = True
+    mark.import_sentences(text)
+    sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
     while len(sentence[0]) > 280:
-        sentence = mark.generate_multiple_sentences(markov, 1, to_output=to_output, to_print=to_print)
+            sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
 
     ok_or_not = input()
 
-api.update_status(sentence[0])
+    while ok_or_not != 'y':
+        sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
+        while len(sentence[0]) > 280:
+            sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
+
+        ok_or_not = input()
+
+    api.update_status(sentence[0])
+
+    time.sleep(1)
+    tweet_id = api.user_timeline(id = api.me().id, count = 1)[0].id
+    api.update_status('(Tweet like ' + name +')', tweet_id) 
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    main(args)
