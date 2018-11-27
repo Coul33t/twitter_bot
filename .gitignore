@@ -1,0 +1,5 @@
+*.pyc
+*.json
+*.txt
+auth_id.py
+__pycache__/
