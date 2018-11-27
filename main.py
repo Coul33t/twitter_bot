@@ -23,6 +23,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--at", help="the person to imitate", type=str)
+    parser.add_argument("-n", "--noat", help="ignore replies to people (tweets starting with @someone)", action='store_true')
     parser.add_argument("-p", "--pages", help="the number of page to gather", type=int, default=5)
     parser.add_argument("-m", "--markov", help="the number of words to look forward for (more = more realistic sentences, but less variation from original sentences)",
                         type=int, default=3)
@@ -32,6 +33,9 @@ def parse_args():
     if not 0 < int(args.markov):
         parser.error("Error: markov value must be > 0.")
 
+    if not args.at:
+        parser.error("Error: must specify a twitter account (without the @).")
+
     return args
 
 def main(args):
@@ -40,7 +44,7 @@ def main(args):
 
     api = tweepy.API(auth, wait_on_rate_limit=True)
 
-    name = 'EmmanuelMacron'
+    name = args.at
 
     output_name = 'data_' + name + '.txt'
 
@@ -57,7 +61,8 @@ def main(args):
             print(f'Processing page {page_count}')
             for tweet in page:
                 if 'RT @' not in tweet.full_text:
-                    text.append(tweet.full_text)
+                    if args.noat and tweet.full_text[0] != '@':
+                        text.append(tweet.full_text)
 
         except tweepy.TweepError as err:
             pdb.set_trace()
@@ -88,6 +93,8 @@ def main(args):
     ok_or_not = input()
 
     while ok_or_not != 'y':
+        if ok_or_not == 'q':
+            return
         sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
         while len(sentence[0]) > 280:
             sentence = mark.generate_multiple_sentences(args.markov, 1, to_output=to_output, to_print=to_print)
