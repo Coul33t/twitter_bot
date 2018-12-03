@@ -52,12 +52,19 @@ def main(args):
 
     tweets_cursor = tweepy.Cursor(api.user_timeline, id=name, tweet_mode='extended').pages(args.pages)
     retry_count = 0
+    retry = False
     page_count = 0
 
     while True:
         try:
-            page = tweets_cursor.next()
-            page_count += 1
+            # If we have to retry due to an error, we keep trying for the same page
+            if retry:
+                retry = False
+            # Else, we take the next page
+            else:
+                page = tweets_cursor.next()
+                page_count += 1
+
             print(f'Processing page {page_count}')
             for tweet in page:
                 if 'RT @' not in tweet.full_text:
@@ -65,11 +72,12 @@ def main(args):
                         text.append(tweet.full_text)
 
         except tweepy.TweepError as err:
+            retry = True
             pdb.set_trace()
             print(f"Error code: {err.response.text} with message: ")
             retry_count += 1
-            print(f'Retrying in 5s (total retries = {retry_count})')
-            time.sleep(5)
+            print(f'Retrying in 1s (total retries = {retry_count})')
+            time.sleep(1)
             if retry_count > 100:
                 break
 
@@ -102,6 +110,8 @@ def main(args):
         ok_or_not = input()
 
     api.update_status(sentence[0])
+
+    print('Tweeted!')
 
     time.sleep(1)
     tweet_id = api.user_timeline(id = api.me().id, count = 1)[0].id
