@@ -14,7 +14,7 @@ import auth_id
 
 import time
 
-from markold.markold import Markold 
+from markold.markold import Markold
 
 import argparse
 
@@ -28,6 +28,7 @@ def parse_args():
     parser.add_argument("-m", "--markov", help="the number of words to look forward for (more = more realistic sentences, but less variation from original sentences)",
                         type=int, default=3)
     parser.add_argument("-o", "--output", help="the name of the output file", type=str)
+    parser.add_argument("-r", "--ref", help="add a reference to the copied person", action='store_true')
     args = parser.parse_args()
 
     if not 0 < int(args.markov):
@@ -70,10 +71,11 @@ def main(args):
                 if 'RT @' not in tweet.full_text:
                     if args.noat and tweet.full_text[0] != '@':
                         text.append(tweet.full_text)
+                    elif not args.noat:
+                        text.append(tweet.full_text)
 
         except tweepy.TweepError as err:
             retry = True
-            pdb.set_trace()
             print(f"Error code: {err.response.text} with message: ")
             retry_count += 1
             print(f'Retrying in 1s (total retries = {retry_count})')
@@ -83,7 +85,7 @@ def main(args):
 
         # We reached the end of the pages
         except StopIteration:
-            break  
+            break
 
     if args.output:
         with open(output_name, 'w', encoding='utf8')as of:
@@ -115,7 +117,12 @@ def main(args):
 
     time.sleep(1)
     tweet_id = api.user_timeline(id = api.me().id, count = 1)[0].id
-    api.update_status('(Tweet like ' + name +')', tweet_id) 
+    if args.ref:
+        api.update_status('(Tweet like @' + name +')', tweet_id)
+    else:
+        api.update_status('(Tweet like ' + name +')', tweet_id)
+
+    print('Added reference to original person.')
 
 if __name__ == '__main__':
     args = parse_args()
