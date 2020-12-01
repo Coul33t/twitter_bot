@@ -9,7 +9,9 @@ A twitter bot that gathers tweets from a person, then generates new sentences fr
 * A file named auth_id, containing the variables `consumer_key`, `consumer_secret`, `access_token` and `access_secret` (all from the twitter developper account)
 
 ## Usage
-`py main.py`
+`py gui.py` for the GUI version.
+
+`py main.py` for the CLI version.  
 Required parameters :
 * `-a` / `--at` : the person's @name (without the @)
 
