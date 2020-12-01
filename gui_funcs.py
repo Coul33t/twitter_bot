@@ -27,6 +27,8 @@ class TwitterBot:
         self.api = tweepy.API(self.auth, wait_on_rate_limit=True)
 
     def gather_tweets(self):
+        self.tweets = []
+
         tweets_cursor = tweepy.Cursor(self.api.user_timeline,
                                       id=self.name,
                                       tweet_mode='extended').pages(self.pages_to_retrieve)
